@@ -1,0 +1,37 @@
+# GUI Framework
+PyQt6>=6.5.0
+qdarkstyle>=3.0.0
+
+# Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+onnxruntime>=1.15.0
+onnx>=1.14.0
+
+# Image Processing
+opencv-python>=4.8.0
+Pillow>=9.0.0
+scikit-image>=0.20.0
+numpy>=1.21.0
+
+# Data Processing
+pandas>=2.0.0
+scipy>=1.10.0
+
+# Network
+requests>=2.28.0
+
+# Progress Bar
+tqdm>=4.60.0
+
+# Configuration
+PyYAML>=6.0.0
+
+# Logging
+loguru>=0.7.0
+
+# System Monitoring
+psutil>=5.8.0
+
+# Development
+pytest>=7.0.0

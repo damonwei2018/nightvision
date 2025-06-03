@@ -1,0 +1,111 @@
+{
+  "ui": {
+    "theme": "dark",
+    "window_size": [1200, 800],
+    "window_position": [100, 100],
+    "splitter_sizes": [300, 600, 300],
+    "preview_mode": "split",
+    "zoom_level": 100,
+    "auto_fit": true,
+    "show_status_panel": true,
+    "language": "zh_CN"
+  },
+  "processing": {
+    "max_workers": 4,
+    "chunk_size": 1024,
+    "use_gpu": true,
+    "gpu_memory_limit": 0.8,
+    "enable_optimization": true,
+    "cache_size": 100
+  },
+  "models": {
+    "zero_dce": {
+      "model_path": "models/zero_dce.onnx",
+      "input_size": [512, 512],
+      "use_fp16": false,
+      "providers": ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    },
+    "dexined": {
+      "model_path": "models/dexined.onnx",
+      "input_size": [512, 512],
+      "use_fp16": false,
+      "providers": ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    }
+  },
+  "enhancement": {
+    "brightness": 0.0,
+    "contrast": 1.0,
+    "gamma": 1.0,
+    "exposure": 0.0,
+    "enable_auto_adjust": true,
+    "preserve_highlights": true,
+    "noise_reduction": 0.1
+  },
+  "edge_detection": {
+    "enable": true,
+    "threshold": 0.5,
+    "edge_width": 1,
+    "blur_radius": 0.5,
+    "non_max_suppression": true
+  },
+  "night_vision": {
+    "default_style": "thermal_green",
+    "edge_color": [0, 255, 0],
+    "background_tint": [0, 40, 0],
+    "edge_alpha": 0.8,
+    "background_alpha": 0.3,
+    "glow_effect": true,
+    "scan_lines": false,
+    "noise_overlay": 0.05
+  },
+  "output": {
+    "default_format": "jpg",
+    "quality": 95,
+    "preserve_metadata": false,
+    "add_watermark": false,
+    "watermark_text": "Night Vision",
+    "watermark_position": "bottom_right",
+    "watermark_opacity": 0.5
+  },
+  "batch_processing": {
+    "preserve_structure": true,
+    "overwrite_existing": false,
+    "create_backup": false,
+    "max_concurrent": 4,
+    "auto_resume": true,
+    "progress_save_interval": 10
+  },
+  "paths": {
+    "models_dir": "models",
+    "cache_dir": "cache",
+    "logs_dir": "logs",
+    "temp_dir": "temp",
+    "presets_dir": "presets",
+    "last_input_dir": "",
+    "last_output_dir": "",
+    "recent_files": []
+  },
+  "performance": {
+    "enable_profiling": false,
+    "log_performance": true,
+    "memory_limit_mb": 2048,
+    "cpu_threads": 0,
+    "gpu_device_id": 0,
+    "optimization_level": "balanced"
+  },
+  "logging": {
+    "level": "INFO",
+    "console_output": true,
+    "file_output": true,
+    "max_file_size_mb": 10,
+    "backup_count": 5,
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  },
+  "advanced": {
+    "enable_debug_mode": false,
+    "show_model_info": false,
+    "enable_experimental_features": false,
+    "custom_shaders": false,
+    "hardware_acceleration": "auto"
+  }
+}

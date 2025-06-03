@@ -1,0 +1,48 @@
+{
+    "ui": {
+        "theme": "dark",
+        "window_size": [
+            1200,
+            800
+        ],
+        "window_position": [
+            100,
+            100
+        ],
+        "splitter_sizes": [
+            299,
+            582,
+            291
+        ],
+        "preview_update_delay": 500
+    },
+    "processing": {
+        "use_gpu": true,
+        "batch_size": 1,
+        "num_workers": 4,
+        "output_format": "png",
+        "output_quality": 95
+    },
+    "models": {
+        "zero_dce_model_path": "models/zero_dce.onnx",
+        "dexined_model_path": "models/dexined.onnx",
+        "model_cache_dir": "models/cache"
+    },
+    "enhancement": {
+        "brightness": 0.5,
+        "contrast": 1.0,
+        "gamma": 1.0,
+        "exposure": 0.0
+    },
+    "edge_detection": {
+        "threshold": 0.5,
+        "edge_width": 2,
+        "edge_color": "#00FF00",
+        "edge_style": "thermal_green"
+    },
+    "paths": {
+        "last_input_dir": "C:\\Users\\damon\\Pictures\\Screenshots",
+        "last_output_dir": "",
+        "temp_dir": "temp"
+    }
+}
