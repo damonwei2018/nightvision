@@ -57,16 +57,19 @@ pip install -r requirements.txt
 ```
 
 ### 4. 下载预训练模型
+
+项目需要下载预训练模型才能正常工作：
+
 ```bash
-# 创建模型目录
-mkdir models
-
-# 下载Zero-DCE模型 (示例链接)
-# wget -O models/zero_dce.onnx https://example.com/zero_dce.onnx
-
-# 下载DexiNed模型 (示例链接)
-# wget -O models/dexined.onnx https://example.com/dexined.onnx
+# 运行模型下载脚本
+python download_real_models.py
 ```
+
+这将自动下载：
+- **Zero-DCE模型** (`zero_dce_original.pth`) - 来自Hugging Face
+- **DexiNed模型** (`dexined_original.pth`) - 来自官方GitHub
+
+模型将保存在 `models/` 目录下。
 
 ### 5. 运行应用
 ```bash
@@ -93,41 +96,32 @@ python main.py
 
 ### 配置文件位置
 - 主配置文件: `config.json`
-- 用户设置: `~/.nightvision/settings.json`
+- 用户设置: `config/settings.json`
 - 日志文件: `logs/nightvision.log`
 
 ### 主要配置项
-
-#### UI设置
-```json
-{
-  "ui": {
-    "theme": "dark",
-    "window_size": [1200, 800],
-    "preview_mode": "split",
-    "language": "zh_CN"
-  }
-}
-```
-
-#### 处理设置
-```json
-{
-  "processing": {
-    "max_workers": 4,
-    "use_gpu": true,
-    "gpu_memory_limit": 0.8
-  }
-}
-```
 
 #### 模型设置
 ```json
 {
   "models": {
     "zero_dce": {
-      "model_path": "models/zero_dce.onnx",
-      "input_size": [512, 512]
+      "path": "models/zero_dce_original.pth",
+      "use_original_model": true,
+      "enhancement_params": {
+        "brightness": 1.0,
+        "contrast": 1.0,
+        "gamma": 1.0
+      }
+    },
+    "dexined": {
+      "path": "models/dexined_original.pth",
+      "edge_params": {
+        "threshold": 0.5,
+        "edge_width": 1,
+        "use_nms": true,
+        "output_index": -1
+      }
     }
   }
 }
@@ -177,39 +171,44 @@ python main.py
 ### 项目结构
 ```
 nightvision/
-├── main.py                 # 主程序入口
-├── requirements.txt        # 依赖列表
-├── config.json            # 配置文件
-├── README.md              # 项目说明
-├── src/                   # 源代码
+├── main.py                    # 主程序入口
+├── requirements.txt           # 依赖列表
+├── config.json               # 配置文件
+├── download_real_models.py   # 模型下载脚本
+├── README.md                 # 项目说明
+├── src/                      # 源代码
 │   ├── __init__.py
-│   ├── ui/                # 用户界面
+│   ├── ui/                   # 用户界面
 │   │   ├── main_window.py
 │   │   └── widgets/
-│   ├── models/            # 深度学习模型
-│   │   ├── zero_dce.py
-│   │   └── dexined.py
-│   ├── processing/        # 图像处理
+│   ├── models/               # 深度学习模型
+│   │   ├── zero_dce.py      # Zero-DCE低光增强
+│   │   ├── dexined.py       # DexiNed边缘检测
+│   │   └── dexined_official.py  # 官方DexiNed实现
+│   ├── processing/           # 图像处理
 │   │   ├── image_processor.py
 │   │   └── batch_processor.py
-│   └── utils/             # 工具模块
+│   └── utils/                # 工具模块
 │       ├── config.py
 │       └── logger.py
-├── models/                # 模型文件
-├── logs/                  # 日志文件
-└── cache/                 # 缓存目录
+├── models/                   # 模型文件目录
+├── logs/                     # 日志文件
+├── cache/                    # 缓存目录
+└── third_party/              # 第三方代码
+    ├── Zero-DCE/            # 官方Zero-DCE实现
+    └── DexiNed/             # 官方DexiNed实现
 ```
 
-### 添加新的夜视风格
-1. 在 `image_processor.py` 中的 `NIGHT_VISION_STYLES` 添加新风格
-2. 定义颜色、透明度等参数
-3. 在UI中添加对应的选项
+### 技术架构说明
 
-### 集成新模型
-1. 在 `models/` 目录创建新的模型类
-2. 继承 `BaseModel` 基类
-3. 实现必要的方法：`load`, `preprocess`, `inference`, `postprocess`
-4. 在 `ModelManager` 中注册新模型
+#### 模型实现
+- **Zero-DCE**: 使用官方的 `enhance_net_nopool` 网络结构，100%兼容官方权重
+- **DexiNed**: 集成官方的 DenseBlock 架构，通过包装器使用官方实现
+
+#### 关键技术点
+1. **模型兼容性**: 通过分析官方实现确保网络结构完全匹配
+2. **权重加载**: 智能处理不同格式的checkpoint文件
+3. **后处理增强**: 在官方模型基础上添加亮度、对比度、gamma调节
 
 ## 🐛 故障排除
 
@@ -217,7 +216,7 @@ nightvision/
 
 #### 模型加载失败
 - **原因**: 模型文件不存在或损坏
-- **解决**: 重新下载模型文件，检查路径配置
+- **解决**: 运行 `python download_real_models.py` 重新下载
 
 #### GPU加速不可用
 - **原因**: CUDA环境未正确安装
@@ -229,7 +228,7 @@ nightvision/
 
 #### 处理速度慢
 - **原因**: CPU处理或模型未优化
-- **解决**: 启用GPU加速，使用量化模型
+- **解决**: 启用GPU加速，调整输入图像尺寸
 
 ### 日志分析
 - 查看 `logs/nightvision.log` 获取详细错误信息
@@ -238,13 +237,20 @@ nightvision/
 
 ## 📝 更新日志
 
-### v1.0.0 (2024-01-XX)
+### v1.0.0 (2024-12-19)
 - ✨ 初始版本发布
 - 🎨 支持4种夜视风格
-- 🚀 集成Zero-DCE和DexiNed模型
+- 🚀 集成Zero-DCE和DexiNed官方模型
 - 💻 现代化PyQt6界面
 - 📊 批量处理功能
 - ⚡ GPU加速支持
+- 🔧 完整的模型下载和管理系统
+
+### 最近更新
+- 修复了AI模型调用失败的问题
+- 集成官方DexiNed实现，提升边缘检测质量
+- 添加了模型自动下载脚本
+- 优化了日志系统
 
 ## 🤝 贡献指南
 
@@ -265,13 +271,12 @@ nightvision/
 - [Zero-DCE](https://github.com/Li-Chongyi/Zero-DCE) - 低光图像增强
 - [DexiNed](https://github.com/xavysp/DexiNed) - 边缘检测
 - [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) - GUI框架
-- [ONNX Runtime](https://onnxruntime.ai/) - 模型推理
+- [PyTorch](https://pytorch.org/) - 深度学习框架
 
 ## 📞 联系方式
 
 - 项目主页: https://github.com/your-username/nightvision
 - 问题反馈: https://github.com/your-username/nightvision/issues
-- 邮箱: your-email@example.com
 
 ---
 

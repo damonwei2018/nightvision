@@ -19,7 +19,7 @@ from .model_manager import BaseModel, optimize_onnx_session
 from ..utils.config import Config
 
 class DCENet(nn.Module):
-    """Zero-DCE网络结构"""
+    """Zero-DCE网络结构 - 原始enhance_net_nopool实现"""
     
     def __init__(self, num_iterations: int = 8):
         """初始化网络
@@ -28,6 +28,76 @@ class DCENet(nn.Module):
             num_iterations: 迭代次数
         """
         super(DCENet, self).__init__()
+        self.num_iterations = num_iterations
+        
+        # 激活函数
+        self.relu = nn.ReLU(inplace=True)
+        
+        # 特征提取网络 - 参考原始enhance_net_nopool结构
+        number_f = 32
+        self.e_conv1 = nn.Conv2d(3, number_f, 3, 1, 1, bias=True)
+        self.e_conv2 = nn.Conv2d(number_f, number_f, 3, 1, 1, bias=True)
+        self.e_conv3 = nn.Conv2d(number_f, number_f, 3, 1, 1, bias=True)
+        self.e_conv4 = nn.Conv2d(number_f, number_f, 3, 1, 1, bias=True)
+        self.e_conv5 = nn.Conv2d(number_f * 2, number_f, 3, 1, 1, bias=True)
+        self.e_conv6 = nn.Conv2d(number_f * 2, number_f, 3, 1, 1, bias=True)
+        self.e_conv7 = nn.Conv2d(number_f * 2, 24, 3, 1, 1, bias=True)  # 8次迭代 * 3通道 = 24
+        
+        # 池化和上采样（虽然名字叫nopool，但保留这些层以备用）
+        self.maxpool = nn.MaxPool2d(2, stride=2, return_indices=False, ceil_mode=False)
+        self.upsample = nn.UpsamplingBilinear2d(scale_factor=2)
+    
+    def forward(self, x):
+        """前向传播 - 参考原始实现
+        
+        Args:
+            x: 输入图像 [B, 3, H, W]
+            
+        Returns:
+            enhance_image_1: 中间增强结果
+            enhance_image: 最终增强结果
+            r: 增强曲线参数
+        """
+        # 特征提取 - 参考原始enhance_net_nopool
+        x1 = self.relu(self.e_conv1(x))
+        x2 = self.relu(self.e_conv2(x1))
+        x3 = self.relu(self.e_conv3(x2))
+        x4 = self.relu(self.e_conv4(x3))
+        
+        # 特征融合
+        x5 = self.relu(self.e_conv5(torch.cat([x3, x4], 1)))
+        x6 = self.relu(self.e_conv6(torch.cat([x2, x5], 1)))
+        
+        # 生成增强曲线参数
+        x_r = torch.tanh(self.e_conv7(torch.cat([x1, x6], 1)))
+        r1, r2, r3, r4, r5, r6, r7, r8 = torch.split(x_r, 3, dim=1)
+        
+        # 应用增强曲线 - 完全按照原始实现
+        enhanced = x
+        enhanced = enhanced + r1 * (torch.pow(enhanced, 2) - enhanced)
+        enhanced = enhanced + r2 * (torch.pow(enhanced, 2) - enhanced)
+        enhanced = enhanced + r3 * (torch.pow(enhanced, 2) - enhanced)
+        enhance_image_1 = enhanced + r4 * (torch.pow(enhanced, 2) - enhanced)
+        enhanced = enhance_image_1 + r5 * (torch.pow(enhance_image_1, 2) - enhance_image_1)
+        enhanced = enhanced + r6 * (torch.pow(enhanced, 2) - enhanced)
+        enhanced = enhanced + r7 * (torch.pow(enhanced, 2) - enhanced)
+        enhance_image = enhanced + r8 * (torch.pow(enhanced, 2) - enhanced)
+        
+        # 合并所有曲线参数
+        r = torch.cat([r1, r2, r3, r4, r5, r6, r7, r8], 1)
+        
+        return enhance_image_1, enhance_image, r
+
+class SimpleDCENet(nn.Module):
+    """简化版Zero-DCE网络结构 - 原来的实现"""
+    
+    def __init__(self, num_iterations: int = 8):
+        """初始化网络
+        
+        Args:
+            num_iterations: 迭代次数
+        """
+        super(SimpleDCENet, self).__init__()
         self.num_iterations = num_iterations
         
         # 特征提取网络
@@ -168,16 +238,79 @@ class ZeroDCEModel(BaseModel):
             else:
                 self.device = torch.device('cpu')
             
-            # 创建模型
-            self.model = DCENet(self.num_iterations)
+            # 创建模型 - 根据配置选择模型类型
+            use_original_model = self.config.get('models.zero_dce.use_original_model', True)
+            
+            if use_original_model:
+                self.logger.info("使用原始Zero-DCE模型结构")
+                self.model = DCENet(self.num_iterations)
+                self.use_original_model = True
+            else:
+                self.logger.info("使用简化版Zero-DCE模型结构")
+                self.model = SimpleDCENet(self.num_iterations)
+                self.use_original_model = False
             
             # 加载权重
             if model_path.endswith('.pth') or model_path.endswith('.pt'):
-                checkpoint = torch.load(model_path, map_location=self.device)
-                if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-                    self.model.load_state_dict(checkpoint['state_dict'])
-                else:
-                    self.model.load_state_dict(checkpoint)
+                self.logger.info(f"加载PyTorch权重文件: {model_path}")
+                # 首先尝试直接加载
+                try:
+                    state_dict = torch.load(model_path, map_location=self.device)
+                    
+                    # 如果是完整的checkpoint
+                    if isinstance(state_dict, dict):
+                        if 'state_dict' in state_dict:
+                            state_dict = state_dict['state_dict']
+                        elif 'model' in state_dict:
+                            state_dict = state_dict['model']
+                    
+                    # 处理键名前缀问题
+                    new_state_dict = {}
+                    model_state_dict = self.model.state_dict()
+                    
+                    for k, v in state_dict.items():
+                        # 移除可能的module前缀
+                        if k.startswith('module.'):
+                            k = k[7:]
+                        
+                        # 检查键是否存在于模型中
+                        if k in model_state_dict:
+                            # 检查形状是否匹配
+                            if v.shape == model_state_dict[k].shape:
+                                new_state_dict[k] = v
+                            else:
+                                self.logger.warning(f"形状不匹配，跳过键 {k}: 期望 {model_state_dict[k].shape}, 实际 {v.shape}")
+                        else:
+                            # 尝试匹配相似的键名
+                            matched = False
+                            for model_key in model_state_dict.keys():
+                                if model_key.endswith(k.split('.')[-1]) and v.shape == model_state_dict[model_key].shape:
+                                    new_state_dict[model_key] = v
+                                    matched = True
+                                    self.logger.debug(f"匹配键 {k} -> {model_key}")
+                                    break
+                            if not matched:
+                                self.logger.debug(f"未找到匹配的键: {k}")
+                    
+                    # 加载权重
+                    missing_keys, unexpected_keys = self.model.load_state_dict(new_state_dict, strict=False)
+                    
+                    if missing_keys:
+                        self.logger.warning(f"缺失的键: {missing_keys}")
+                    if unexpected_keys:
+                        self.logger.warning(f"意外的键: {unexpected_keys}")
+                    
+                    # 检查是否成功加载了足够的权重
+                    loaded_ratio = len(new_state_dict) / len(model_state_dict)
+                    if loaded_ratio < 0.5:
+                        self.logger.warning(f"只加载了 {loaded_ratio*100:.1f}% 的权重，可能模型结构不匹配")
+                    else:
+                        self.logger.info(f"成功加载了 {loaded_ratio*100:.1f}% 的权重")
+                    
+                except Exception as e:
+                    self.logger.error(f"加载权重时出错: {e}")
+                    # 继续使用随机初始化的权重
+                    self.logger.warning("使用随机初始化的权重继续")
             else:
                 raise ValueError(f"不支持的模型格式: {model_path}")
             
@@ -188,11 +321,13 @@ class ZeroDCEModel(BaseModel):
             self.use_onnx = False
             self.is_loaded = True
             
-            self.logger.info(f"PyTorch模型加载成功，设备: {self.device}")
+            self.logger.info(f"PyTorch模型加载完成，设备: {self.device}")
             return True
             
         except Exception as e:
             self.logger.error(f"PyTorch模型加载失败: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
             return False
     
     def preprocess(self, image: Union[Image.Image, np.ndarray]) -> np.ndarray:
@@ -263,7 +398,12 @@ class ZeroDCEModel(BaseModel):
         else:
             # PyTorch推理
             with torch.no_grad():
-                output = self.model(input_data)
+                if hasattr(self, 'use_original_model') and self.use_original_model:
+                    # 原始DCENet返回三个值：中间结果、最终结果和增强曲线参数
+                    _, output, _ = self.model(input_data)
+                else:
+                    # 简化版DCENet只返回最终结果
+                    output = self.model(input_data)
         
         return output
     

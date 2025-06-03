@@ -17,7 +17,7 @@ from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont
 
 from ...utils.config import Config
-from ...utils.logger import LoggerMixin
+from ...utils.logger import LoggerMixin, register_qt_handler
 
 class StatusPanel(QWidget, LoggerMixin):
     """状态面板"""
@@ -25,6 +25,7 @@ class StatusPanel(QWidget, LoggerMixin):
     # 信号定义
     status_updated = pyqtSignal(str)  # 状态更新信号
     performance_updated = pyqtSignal(dict)  # 性能数据更新信号
+    log_received = pyqtSignal(dict)  # 日志接收信号
     
     def __init__(self, config: Config, parent: Optional[QWidget] = None):
         """初始化状态面板
@@ -49,6 +50,10 @@ class StatusPanel(QWidget, LoggerMixin):
         
         self.init_ui()
         self.init_timers()
+        
+        # 注册Qt日志处理器
+        self.qt_log_handler = register_qt_handler("NightVision", self.log_received)
+        self.log_received.connect(self.on_log_received)
         
         self.logger.info("状态面板初始化完成")
     
@@ -168,9 +173,18 @@ class StatusPanel(QWidget, LoggerMixin):
         
         # 日志文本框
         self.log_text = QTextEdit()
-        self.log_text.setMaximumHeight(100)
+        self.log_text.setMaximumHeight(150)  # 增加高度以显示更多日志
         self.log_text.setReadOnly(True)
         self.log_text.setFont(QFont("Consolas", 9))
+        self.log_text.setAcceptRichText(True)  # 支持富文本
+        self.log_text.setStyleSheet("""
+            QTextEdit {
+                background-color: #1e1e1e;
+                color: #ffffff;
+                border: 1px solid #3c3c3c;
+                border-radius: 3px;
+            }
+        """)
         log_layout.addWidget(self.log_text)
         
         parent_layout.addWidget(log_group)
@@ -359,16 +373,16 @@ class StatusPanel(QWidget, LoggerMixin):
             self.time_label.setText(f"{elapsed:.1f}s")
     
     def add_log(self, message: str):
-        """添加日志消息
+        """添加本地日志消息（用于状态面板内部消息）
         
         Args:
             message: 日志消息
         """
         timestamp = time.strftime("%H:%M:%S")
-        log_entry = f"[{timestamp}] {message}"
+        formatted_message = f"<span style='color:#CCCCCC'>[{timestamp}] [STATUS] {message}</span>"
         
         # 添加到日志文本框
-        self.log_text.append(log_entry)
+        self.log_text.append(formatted_message)
         
         # 限制日志行数
         document = self.log_text.document()
@@ -438,6 +452,42 @@ class StatusPanel(QWidget, LoggerMixin):
         """重置错误样式"""
         self.operation_label.setStyleSheet("")
         self.detail_label.setStyleSheet("color: #888888; font-size: 11px;")
+    
+    def on_log_received(self, log_entry):
+        """处理接收到的日志消息
+        
+        Args:
+            log_entry: 日志条目，包含timestamp、level、message等字段
+        """
+        # 只显示INFO级别以上的日志（INFO、WARNING、ERROR、CRITICAL）
+        if log_entry['level'] in ['INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+            # 使用不同颜色显示不同级别的日志
+            color = {
+                'INFO': '#FFFFFF',      # 白色
+                'WARNING': '#FFA500',   # 橙色
+                'ERROR': '#FF6B6B',     # 红色
+                'CRITICAL': '#FF0000'    # 亮红色
+            }.get(log_entry['level'], '#FFFFFF')
+            
+            # 格式化日志消息
+            timestamp = log_entry['timestamp'].split()[1]  # 只取时间部分
+            message = log_entry['message']
+            formatted_message = f"<span style='color:{color}'>[{timestamp}] [{log_entry['level']}] {message}</span>"
+            
+            # 添加到日志文本框
+            self.log_text.append(formatted_message)
+            
+            # 限制日志行数
+            document = self.log_text.document()
+            if document.blockCount() > 100:
+                cursor = self.log_text.textCursor()
+                cursor.movePosition(cursor.MoveOperation.Start)
+                cursor.select(cursor.SelectionType.BlockUnderCursor)
+                cursor.removeSelectedText()
+            
+            # 滚动到底部
+            scrollbar = self.log_text.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
     
     def closeEvent(self, event):
         """关闭事件处理"""

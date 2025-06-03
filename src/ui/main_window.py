@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QSplitter, QMenuBar, QStatusBar, QProgressBar,
     QLabel, QFileDialog, QMessageBox, QApplication
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QObject
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QObject, pyqtSlot
 from PyQt6.QtGui import QAction, QKeySequence, QIcon
 
 from ..utils.config import Config
@@ -51,9 +51,32 @@ class ImageProcessingThread(QThread):
             def progress_callback(progress, message):
                 self.progress_updated.emit(progress, message)
             
-            # 先应用处理参数到处理器
+            # 处理输出尺寸参数
+            if 'output_size' in self.params:
+                output_size_text = self.params['output_size']
+                output_size = None
+                
+                if output_size_text == "原始尺寸":
+                    output_size = None
+                elif output_size_text == "自定义":
+                    if 'custom_width' in self.params and 'custom_height' in self.params:
+                        width = self.params['custom_width']
+                        height = self.params['custom_height']
+                        output_size = (width, height)
+                else:
+                    # 处理如 "1920x1080" 格式的尺寸
+                    try:
+                        width, height = output_size_text.split('x')
+                        output_size = (int(width), int(height))
+                    except (ValueError, AttributeError):
+                        output_size = None
+                
+                # 更新处理器的输出尺寸
+                self.processor.output_size = output_size
+            
+            # 应用其他处理参数到处理器
             for key, value in self.params.items():
-                if hasattr(self.processor, key):
+                if key != 'output_size' and hasattr(self.processor, key):
                     setattr(self.processor, key, value)
             
             # 调用处理方法

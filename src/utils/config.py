@@ -48,11 +48,21 @@ class Config:
                 "output_quality": 95
             },
             "models": {
+                "use_gpu": True,
                 "zero_dce_model_path": "models/zero_dce.onnx",
                 "dexined_model_path": "models/dexined.onnx",
-                "model_cache_dir": "models/cache"
-            },
-            "enhancement": {
+                "model_cache_dir": "models/cache",
+                "zero_dce": {
+                    "use_original_model": True,  # True: 使用原始enhance_net_nopool结构, False: 使用简化版结构
+                    "num_iterations": 8,
+                    "input_size": [512, 512]
+                },
+                "dexined": {
+                     "input_size": [512, 512],
+                     "threshold": 0.5
+                 }
+             },
+             "enhancement": {
                 "brightness": 0.5,
                 "contrast": 1.0,
                 "gamma": 1.0,

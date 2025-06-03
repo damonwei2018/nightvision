@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Project specific
+logs/
+cache/
+temp/
+output/
+*.log
+
+# Models (too large for git)
+models/*.pth
+models/*.onnx
+models/*.pt
+models/*.bin
+
+# Test files
+test_*.py
+*.test.py
+
+# Third party code (can be cloned separately)
+third_party/
+
+# Config overrides
+config/local.json
+config/*.local.json
+
+# Database
+*.db
+*.sqlite
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+Thumbs.db
+desktop.ini 

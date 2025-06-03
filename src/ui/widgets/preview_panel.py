@@ -52,6 +52,8 @@ class ImageLabel(QLabel):
         self.original_pixmap = pixmap
         self.zoom_factor = 1.0
         self.pan_offset = [0, 0]
+        # 自动缩放到适合窗口
+        self.zoom_to_fit()
         self.update_display()
     
     def update_display(self):
@@ -532,12 +534,27 @@ class PreviewPanel(QWidget, LoggerMixin):
         Args:
             zoom_factor: 缩放因子
         """
-        # 同步缩放滑块
-        self.zoom_slider.setValue(int(zoom_factor * 100))
-        
-        # 同步结果图缩放
-        self.result_label.zoom_factor = zoom_factor
-        self.result_label.update_display()
+        # 防止循环调用
+        if hasattr(self, '_updating_zoom') and self._updating_zoom:
+            return
+            
+        self._updating_zoom = True
+        try:
+            # 同步缩放滑块
+            self.zoom_slider.setValue(int(zoom_factor * 100))
+            
+            # 同步结果图缩放（不触发信号）
+            self.result_label.zoom_factor = zoom_factor
+            if self.result_label.original_pixmap is not None:
+                scaled_size = self.result_label.original_pixmap.size() * zoom_factor
+                scaled_pixmap = self.result_label.original_pixmap.scaled(
+                    scaled_size,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                self.result_label.setPixmap(scaled_pixmap)
+        finally:
+            self._updating_zoom = False
     
     def on_result_zoom_changed(self, zoom_factor: float):
         """结果图缩放变化处理
@@ -545,12 +562,27 @@ class PreviewPanel(QWidget, LoggerMixin):
         Args:
             zoom_factor: 缩放因子
         """
-        # 同步缩放滑块
-        self.zoom_slider.setValue(int(zoom_factor * 100))
-        
-        # 同步原图缩放
-        self.original_label.zoom_factor = zoom_factor
-        self.original_label.update_display()
+        # 防止循环调用
+        if hasattr(self, '_updating_zoom') and self._updating_zoom:
+            return
+            
+        self._updating_zoom = True
+        try:
+            # 同步缩放滑块
+            self.zoom_slider.setValue(int(zoom_factor * 100))
+            
+            # 同步原图缩放（不触发信号）
+            self.original_label.zoom_factor = zoom_factor
+            if self.original_label.original_pixmap is not None:
+                scaled_size = self.original_label.original_pixmap.size() * zoom_factor
+                scaled_pixmap = self.original_label.original_pixmap.scaled(
+                    scaled_size,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                self.original_label.setPixmap(scaled_pixmap)
+        finally:
+            self._updating_zoom = False
     
     def zoom_to_fit(self):
         """缩放到适合窗口"""

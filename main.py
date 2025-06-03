@@ -48,25 +48,42 @@ def main():
     """主函数"""
     try:
         # 设置日志
-        logger = setup_logger()
+        log_dir = project_root / "logs"
+        log_dir.mkdir(exist_ok=True)
+        log_file = log_dir / "nightvision.log"
+        
+        # 使用RotatingFileHandler，设置为DEBUG级别以捕获所有日志
+        logger = setup_logger(
+            log_file=str(log_file),
+            level=10,  # DEBUG级别
+            max_file_size=10 * 1024 * 1024,  # 10MB
+            backup_count=5  # 保留5个备份文件
+        )
         logger.info("启动 NightVision 应用程序")
+        logger.debug("日志系统初始化完成，级别：DEBUG")
         
         # 加载配置
         config = Config()
+        logger.debug("配置加载完成")
         
         # 创建应用程序
         app = setup_application()
+        logger.debug("应用程序实例创建完成")
         
         # 创建主窗口
+        logger.debug("开始创建主窗口...")
         main_window = MainWindow(config)
-        main_window.show()
+        logger.debug("主窗口创建完成")
         
+        main_window.show()
         logger.info("应用程序界面已启动")
         
         # 运行应用程序
         sys.exit(app.exec())
         
     except Exception as e:
+        if 'logger' in locals():
+            logger.critical(f"应用程序启动失败: {e}", exc_info=True)
         print(f"应用程序启动失败: {e}")
         sys.exit(1)
 

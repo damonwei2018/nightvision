@@ -153,26 +153,26 @@ class NightVisionProcessor(LoggerMixin):
         }
         
         # 输入验证
-         if image_input is None:
-             self.logger.error("输入图像为None")
-             error_image = np.zeros((400, 600, 3), dtype=np.uint8)
-             try:
-                 import cv2
-                 cv2.putText(error_image, "Input image is None", (50, 200), 
+        if image is None:
+            self.logger.error("输入图像为None")
+            error_image = np.zeros((400, 600, 3), dtype=np.uint8)
+            try:
+                import cv2
+                cv2.putText(error_image, "Input image is None", (50, 200), 
                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-             except:
-                 pass
-             return error_image
-             
-         try:
+            except:
+                pass
+            return error_image
+            
+        try:
             # 输入验证
-             if isinstance(image_input, str):
+            if isinstance(image, str):
                 # 检查文件是否存在
-                 image_path = Path(image_input)
+                image_path = Path(image)
                 if not image_path.exists():
-                     raise FileNotFoundError(f"图像文件不存在: {image_input}")
+                    raise FileNotFoundError(f"图像文件不存在: {image}")
                 if not image_path.is_file():
-                     raise ValueError(f"指定路径不是文件: {image_input}")
+                    raise ValueError(f"指定路径不是文件: {image}")
                     
                 # 检查文件大小
                 file_size_mb = image_path.stat().st_size / (1024 * 1024)
@@ -181,24 +181,24 @@ class NightVisionProcessor(LoggerMixin):
                 
                 try:
                     # 尝试打开图像文件
-                    pil_image = Image.open(image_input)
+                    pil_image = Image.open(image)
                     # 验证图像格式
                     pil_image.verify()  # 验证图像数据
                     # 重新打开图像，因为verify后图像文件指针已移动
-                    pil_image = Image.open(image_input)
+                    pil_image = Image.open(image)
                 except Exception as e:
                     raise ValueError(f"无法打开或验证图像文件: {e}")
-            elif isinstance(image_input, Image.Image):
-                pil_image = image_input
-            elif isinstance(image_input, np.ndarray):
-                if image_input.size == 0:
+            elif isinstance(image, Image.Image):
+                pil_image = image
+            elif isinstance(image, np.ndarray):
+                if image.size == 0:
                     raise ValueError("空的numpy数组")
                 try:
-                    pil_image = Image.fromarray(image_input)
+                    pil_image = Image.fromarray(image)
                 except Exception as e:
                     raise ValueError(f"无法从numpy数组创建图像: {e}")
             else:
-                raise ValueError(f"不支持的图像类型: {type(image_input)}")
+                raise ValueError(f"不支持的图像类型: {type(image)}")
             
             # 检查图像尺寸
             width, height = pil_image.size
