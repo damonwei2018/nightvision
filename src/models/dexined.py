@@ -115,3 +115,24 @@ class DexiNedModel(BaseModel):
             self.output_index = -1
         
         self.logger.debug("边缘检测参数已重置为默认值")
+    
+    def preprocess(self, image: Union[Image.Image, np.ndarray]) -> np.ndarray:
+        """预处理输入图像（默认实现，将被官方模型方法替换）"""
+        if hasattr(self, '_official_model'):
+            return self._official_model.preprocess(image)
+        else:
+            raise NotImplementedError("模型未加载")
+    
+    def inference(self, input_data) -> Union[np.ndarray, torch.Tensor]:
+        """模型推理（默认实现，将被官方模型方法替换）"""
+        if hasattr(self, '_official_model'):
+            return self._official_model.inference(input_data)
+        else:
+            raise NotImplementedError("模型未加载")
+    
+    def postprocess(self, output: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+        """后处理输出结果（默认实现，将被官方模型方法替换）"""
+        if hasattr(self, '_official_model'):
+            return self._official_model.postprocess(output)
+        else:
+            raise NotImplementedError("模型未加载")

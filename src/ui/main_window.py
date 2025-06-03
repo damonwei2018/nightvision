@@ -232,6 +232,17 @@ class MainWindow(QMainWindow, LoggerMixin):
         try:
             self.processor = NightVisionProcessor(self.config)
             self.logger.info("图像处理器初始化成功")
+            
+            # 加载模型
+            zero_dce_path = self.config.get('models.zero_dce.path')
+            dexined_path = self.config.get('models.dexined.path')
+            
+            self.logger.info("开始加载AI模型...")
+            if self.processor.load_models(zero_dce_path, dexined_path):
+                self.logger.info("AI模型加载成功")
+            else:
+                self.logger.warning("部分AI模型加载失败，但程序可以继续运行")
+                
         except Exception as e:
             self.logger.error(f"图像处理器初始化失败: {e}")
             QMessageBox.warning(self, "警告", f"图像处理器初始化失败: {e}")
